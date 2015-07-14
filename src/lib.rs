@@ -1,35 +1,40 @@
 //! An alternate implementation of `try!` that can operate on `Option<T>`
 //! as well as `Result<T, E>`, while remaining backward compatible (I think).
 
-pub trait Try<T, E> {
-    fn try(self) -> Result<T, E>;
+pub enum Pathflow<H, B> {
+    Happy(H),
+    Bubble(B)
+}
+
+pub trait Try<H, B> {
+    fn try(self) -> Pathflow<H, B>;
 }
 
 #[macro_export]
 macro_rules! try2 {
     ( $e:expr ) => {
         match $crate::Try::try($e) {
-            Ok(v) => v,
-            Err(r) => return r
+            ::Pathflow::Happy(h) => h,
+            ::Pathflow::Bubble(b) => return b
         }
     }
 }
 
 impl<T, R> Try<T, Option<R>> for Option<T> {
-    fn try(self) -> Result<T, Option<R>> {
+    fn try(self) -> Pathflow<T, Option<R>> {
         match self {
-            Some(v) => Ok(v),
-            None => Err(None)
+            Some(v) => Pathflow::Happy(v),
+            None => Pathflow::Bubble(None)
         }
     }
 }
 
 impl<T, E, R> Try<T, Result<T, R>> for Result<T, E>
         where R: From<E> {
-    fn try(self) -> Result<T, Result<T, R>> {
+    fn try(self) -> Pathflow<T, Result<T, R>> {
         match self {
-            Ok(v) => Ok(v),
-            Err(e) => Err(Err(::std::convert::From::from(e)))
+            Ok(v) => Pathflow::Happy(v),
+            Err(e) => Pathflow::Bubble(Err(::std::convert::From::from(e)))
         }
     }
 }
